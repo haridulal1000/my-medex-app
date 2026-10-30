@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-import App from './App';
 import { queryClient } from './query/client';
 import './styles/global.scss';
+import App from './App';
 
 const theme = createTheme({
   palette: {

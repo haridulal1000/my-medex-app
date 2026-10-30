@@ -1,6 +1,7 @@
 import { delay, http, HttpResponse } from 'msw';
 import { categories, providers, services } from './data';
 
+
 const MIN_LATENCY_MS = 250;
 const MAX_LATENCY_MS = 650;
 

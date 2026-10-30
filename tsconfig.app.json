@@ -20,7 +20,19 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+  "@api/*":        ["./src/api/*"],
+  "@components/*": ["./src/components/*"],
+  "@domain/*":     ["./src/domain/*"],
+  "@hooks/*":      ["./src/hooks/*"],
+  "@mocks/*":      ["./src/mocks/*"],
+  "@page/*":       ["./src/pages/*"],
+  "@query/*":      ["./src/query/*"],
+  "@state/*":      ["./src/state/*"],
+  "@styles/*":     ["./src/styles/*"]
+}
   },
   "include": ["src"]
 }
