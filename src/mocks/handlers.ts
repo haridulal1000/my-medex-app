@@ -10,11 +10,15 @@ const SEARCH_MIN_LATENCY_MS = 40;
 const SEARCH_MAX_LATENCY_MS = 80;
 
 async function slowLatency(): Promise<void> {
-  await delay(MIN_LATENCY_MS + Math.random() * (MAX_LATENCY_MS - MIN_LATENCY_MS));
+  await delay(
+    MIN_LATENCY_MS + Math.random() * (MAX_LATENCY_MS - MIN_LATENCY_MS),
+  );
 }
+
 async function fastLatency(): Promise<void> {
   await delay(
-    SEARCH_MIN_LATENCY_MS + Math.random() * (SEARCH_MAX_LATENCY_MS - SEARCH_MIN_LATENCY_MS),
+    SEARCH_MIN_LATENCY_MS +
+      Math.random() * (SEARCH_MAX_LATENCY_MS - SEARCH_MIN_LATENCY_MS),
   );
 }
 
@@ -39,7 +43,9 @@ export const handlers = [
     return HttpResponse.json(providers);
   }),
 
-  // Kept for compat — not used by the frontend anymore, but harmless.
+  // Kept for compat — the frontend no longer calls this, but leaving the
+  // endpoint available makes it trivial to debug against raw service data
+  // from the browser console.
   http.get('/api/service', async () => {
     await slowLatency();
     if (shouldFail()) return failResponse();
@@ -52,16 +58,19 @@ export const handlers = [
 
     const url = new URL(request.url);
     const baseState = parseUrl(url.searchParams);
-    const pageSize = Number(url.searchParams.get('page_size')) || 10;
 
-    const req: SearchRequest = {
-      filters: baseState.filters,
-      sort: baseState.sort,
-      page: baseState.page,
-      pageSize,
-    };
+    const response = executeSearch(
+      {
+        filters: baseState.filters,
+        sort: baseState.sort,
+        page: baseState.page,
+        pageSize: baseState.pageSize,
+      },
+      services,
+      providers,
+      categories,
+    );
 
-    const response = executeSearch(req, services, providers, categories);
     return HttpResponse.json(response);
   }),
 ];

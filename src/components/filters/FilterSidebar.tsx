@@ -15,17 +15,28 @@ import { ProviderFilter } from './ProviderFilter';
 import { LocationFilter } from './LocationFilter';
 import { PriceFilter } from './PriceFilter';
 
+export interface FilterSidebarProps {
+  facets: FacetResult;
+  topCategories: CategoryWithChildren[];
+  providers: Provider[];
+  /**
+   * If provided, the sidebar is "controlled": it does not touch the URL,
+   * it calls `onFiltersChange` with the new FilterState instead.
+   * If omitted, the sidebar reads/writes the URL directly (desktop default).
+   */
+  filters?: FilterState;
+  onFiltersChange?: (next: FilterState) => void;
+}
+
 export function FilterSidebar({
   facets,
   topCategories,
   providers,
-}: {
-  facets: FacetResult;
-  topCategories: CategoryWithChildren[];
-  providers: Provider[];
-}) {
+  filters: controlledFilters,
+  onFiltersChange,
+}: FilterSidebarProps) {
   const { state, update } = useUrlState();
-  const { filters } = state;
+  const filters = controlledFilters ?? state.filters;
 
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -47,16 +58,17 @@ export function FilterSidebar({
 
   const setFilters = useCallback(
     (patch: Partial<FilterState>) => {
-      update(
-        (prev) => ({
-          ...prev,
-          page: 1,
-          filters: { ...prev.filters, ...patch },
-        }),
-        { replace: true },
-      );
+      const next: FilterState = { ...filters, ...patch };
+      if (onFiltersChange) {
+        onFiltersChange(next);
+      } else {
+        update(
+          (prev) => ({ ...prev, page: 1, filters: { ...prev.filters, ...patch } }),
+          { replace: true },
+        );
+      }
     },
-    [update],
+    [filters, onFiltersChange, update],
   );
 
   const toggleIn = <T,>(arr: T[], v: T): T[] =>

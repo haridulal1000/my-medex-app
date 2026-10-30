@@ -115,3 +115,20 @@ export function serviceMatchesFilters(
 
   return true;
 }
+/**
+ * True when any filter field is non-default. `hasActiveFilters(EMPTY_FILTERS)`
+ * returns false; any user-driven change returns true. Sort and page size are
+ * *not* filters — they are view preferences and do not affect this.
+ */
+export function hasActiveFilters(f: FilterState): boolean {
+  return (
+    f.q.trim() !== '' ||
+    f.types.length > 0 ||
+    f.categoryIds.length > 0 ||
+    f.providerIds.length > 0 ||
+    f.city !== null ||
+    f.country !== null ||
+    f.homeTestOnly ||
+    f.price.currency !== null
+  );
+}

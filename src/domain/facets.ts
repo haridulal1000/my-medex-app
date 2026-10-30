@@ -16,6 +16,15 @@ export interface FacetResult {
   homeTestCount: number;
 }
 
+export const EMPTY_FACETS: FacetResult = {
+  types: { package: 0, lab_test: 0, wellness: 0, service: 0, insurance: 0 },
+  categoryCounts: {},
+  providerCounts: {},
+  cityCounts: {},
+  countryCounts: {},
+  homeTestCount: 0,
+};
+
 function zeroFacets(): FacetResult {
   return {
     types: { package: 0, lab_test: 0, wellness: 0, service: 0, insurance: 0 },

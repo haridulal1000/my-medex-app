@@ -2,10 +2,15 @@ import type { ServiceType } from '@api/schemas';
 import type { FilterState } from '@domain/filter';
 import type { SortKey } from '@domain/sort';
 
+export type PageSize = 10 | 20 | 50;
+export const DEFAULT_PAGE_SIZE: PageSize = 10;
+export const PAGE_SIZE_OPTIONS: readonly PageSize[] = [10, 20, 50];
+
 export interface UrlState {
   filters: FilterState;
   sort: SortKey;
   page: number;
+  pageSize: PageSize;
 }
 
 const VALID_TYPES = new Set<ServiceType>([
@@ -22,6 +27,13 @@ function finiteOrNull(v: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function parsePageSize(raw: string | null): PageSize {
+  const n = Number(raw);
+  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(n)
+    ? (n as PageSize)
+    : DEFAULT_PAGE_SIZE;
+}
+
 export function parseUrl(sp: URLSearchParams): UrlState {
   const types = (sp.get('type') ?? '')
     .split(',')
@@ -33,15 +45,17 @@ export function parseUrl(sp: URLSearchParams): UrlState {
     .filter((n) => Number.isFinite(n) && n > 0);
 
   const currencyRaw = sp.get('price_currency');
-  const currency = currencyRaw && VALID_CURRENCIES.has(currencyRaw)
-    ? (currencyRaw as 'THB' | 'NPR' | 'INR')
-    : null;
+  const currency =
+    currencyRaw && VALID_CURRENCIES.has(currencyRaw)
+      ? (currencyRaw as 'THB' | 'NPR' | 'INR')
+      : null;
 
   const sortRaw = (sp.get('sort') ?? 'relevance') as SortKey;
   const sort = VALID_SORTS.has(sortRaw) ? sortRaw : 'relevance';
 
   const pageRaw = Number(sp.get('page') ?? '1');
-  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
+  const page =
+    Number.isFinite(pageRaw) && pageRaw >= 1 ? Math.floor(pageRaw) : 1;
 
   return {
     filters: {
@@ -60,6 +74,7 @@ export function parseUrl(sp: URLSearchParams): UrlState {
     },
     sort,
     page,
+    pageSize: parsePageSize(sp.get('page_size')),
   };
 }
 
@@ -80,6 +95,9 @@ export function serializeUrl(state: UrlState): URLSearchParams {
 
   if (state.sort !== 'relevance') sp.set('sort', state.sort);
   if (state.page > 1) sp.set('page', String(state.page));
+  if (state.pageSize !== DEFAULT_PAGE_SIZE) {
+    sp.set('page_size', String(state.pageSize));
+  }
 
   return sp;
 }
