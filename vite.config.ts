@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  base: '/my-medex-app/',
   resolve: {
     alias: {
       '@api':        fileURLToPath(new URL('./src/api',        import.meta.url)),
