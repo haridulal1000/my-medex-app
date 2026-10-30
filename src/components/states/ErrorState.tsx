@@ -48,9 +48,11 @@ function classify(error: unknown, online: boolean): Message {
 export function ErrorState({
   error,
   onRetry,
+  compact = false,
 }: {
   error: unknown;
   onRetry: () => void;
+  compact?: boolean;
 }) {
   const online = useOnlineStatus();
   const { title, description } = classify(error, online);
@@ -58,7 +60,7 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className="text-center py-16 px-4 bg-white rounded-lg border border-rose-200"
+      className={`text-center ${compact ? 'py-6' : 'py-16'} px-4 bg-white rounded-lg border border-rose-200`}
     >
       <div className="text-rose-700 font-semibold text-lg">{title}</div>
       <div className="text-slate-500 text-sm mt-2">{description}</div>

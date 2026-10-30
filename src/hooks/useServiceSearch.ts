@@ -9,5 +9,6 @@ export function useServiceSearch(state: UrlState) {
     queryFn: () => searchServices(queryString),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+    suspense: true,
   });
 }

@@ -1,57 +1,29 @@
 import { useEffect, useState } from 'react';
-import { Button, Drawer, IconButton } from '@mui/material';
+import { Button, Drawer, IconButton, Skeleton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import type { CategoryWithChildren, Provider } from '@api/schemas';
-import { EMPTY_FACETS } from '@domain/facets';
 import { EMPTY_FILTERS } from '@domain/filter';
 import type { FilterState } from '@domain/filter';
+import { useCategories, useProviders } from '@hooks/useCatalog';
 import { useServiceSearch } from '@hooks/useServiceSearch';
 import { useUrlState } from '@state/useUrlState';
-import type { UrlState } from '@state/urlState';
+import { QueryBoundary } from '@components/errors/QueryBoundary';
+import { ErrorState } from '@components/states/ErrorState';
 import { FilterSidebar } from './FilterSidebar';
 
 export function FilterDrawer({
   open,
   onClose,
-  topCategories,
-  providers,
 }: {
   open: boolean;
   onClose: () => void;
-  topCategories: CategoryWithChildren[];
-  providers: Provider[];
 }) {
   const { state, update } = useUrlState();
-
-  // Staged filter state. The user toggles checkboxes here; nothing touches
-  // the URL until they tap "Show N results".
   const [pending, setPending] = useState<FilterState>(state.filters);
 
-  // Re-sync pending from the URL whenever the drawer opens. We intentionally
-  // depend only on `open` (not on `state.filters`) so that in-progress edits
-  // aren't clobbered by unrelated URL updates while the drawer is closed.
   useEffect(() => {
     if (open) setPending(state.filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  // Preview query against the pending selection. keepPreviousData inside
-  // useServiceSearch keeps the previous count visible while the new one
-  // loads, so the button text never flashes "Show results".
-  const previewState: UrlState = {
-    filters: pending,
-    sort: state.sort,
-    page: 1,
-    pageSize: state.pageSize,
-  };
-  const preview = useServiceSearch(previewState);
-  const facets = preview.data?.facets ?? EMPTY_FACETS;
-  const count = preview.data?.pagination.totalServices;
-
-  const countLabel =
-    count !== undefined
-      ? `Show ${count} result${count === 1 ? '' : 's'}`
-      : 'Show results';
 
   const apply = () => {
     update(
@@ -61,22 +33,22 @@ export function FilterDrawer({
     onClose();
   };
 
-  const clear = () => setPending(EMPTY_FILTERS);
-
   return (
-    <Drawer
-      anchor="left"
-      open={open}
-      onClose={onClose}
-      PaperProps={{
-        sx: {
-          width: '100%',
-          maxWidth: 420,
-          display: 'flex',
-          flexDirection: 'column',
-        },
-      }}
-    >
+   <Drawer
+  anchor="left"
+  open={open}
+  onClose={onClose}
+  slotProps={{
+    paper: {
+      sx: {
+        width: '100%',
+        maxWidth: 420,
+        display: 'flex',
+        flexDirection: 'column',
+      },
+    },
+  }}
+>
       <div className="flex items-center justify-between p-4 border-b border-slate-200">
         <div className="font-semibold">Filters</div>
         <IconButton onClick={onClose} aria-label="Close filters">
@@ -84,35 +56,86 @@ export function FilterDrawer({
         </IconButton>
       </div>
 
+      {open && (
+        <QueryBoundary
+          suspenseFallback={<DrawerBodySkeleton />}
+          errorFallback={(err, reset) => (
+            <div className="p-4">
+              <ErrorState error={err} onRetry={reset} compact />
+            </div>
+          )}
+        >
+          <DrawerBody
+            pending={pending}
+            setPending={setPending}
+            onClear={() => setPending(EMPTY_FILTERS)}
+            onApply={apply}
+          />
+        </QueryBoundary>
+      )}
+    </Drawer>
+  );
+}
+
+function DrawerBody({
+  pending,
+  setPending,
+  onClear,
+  onApply,
+}: {
+  pending: FilterState;
+  setPending: (next: FilterState) => void;
+  onClear: () => void;
+  onApply: () => void;
+}) {
+  const { state } = useUrlState();
+  const categoriesQ = useCategories();
+  const providersQ = useProviders();
+  const preview = useServiceSearch({
+    filters: pending,
+    sort: state.sort,
+    page: 1,
+    pageSize: state.pageSize,
+  });
+
+  const count = preview.data!.pagination.totalServices;
+
+  return (
+    <>
       <div className="flex-1 overflow-auto p-4">
         <FilterSidebar
-          facets={facets}
-          topCategories={topCategories}
-          providers={providers}
+          facets={preview.data!.facets}
+          topCategories={categoriesQ.data ?? []}
+          providers={providersQ.data ?? []}
           filters={pending}
           onFiltersChange={setPending}
         />
       </div>
-
       <div className="border-t border-slate-200 p-4 flex gap-2 bg-white">
-        <Button
-          onClick={clear}
-          variant="outlined"
-          color="inherit"
-          size="large"
-        >
+        <Button onClick={onClear} variant="outlined" color="inherit" size="large">
           Clear
         </Button>
         <Button
-          onClick={apply}
+          onClick={onApply}
           variant="contained"
           size="large"
           fullWidth
           aria-live="polite"
         >
-          {countLabel}
+          Show {count} result{count === 1 ? '' : 's'}
         </Button>
       </div>
-    </Drawer>
+    </>
+  );
+}
+
+function DrawerBodySkeleton() {
+  return (
+    <div className="flex-1 overflow-hidden p-4 space-y-4" aria-busy="true">
+      <Skeleton height={40} />
+      <Skeleton height={120} />
+      <Skeleton height={180} />
+      <Skeleton height={100} />
+    </div>
   );
 }

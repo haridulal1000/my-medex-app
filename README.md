@@ -1,204 +1,138 @@
 # MedEx — Service Explorer
 
-Browse health services grouped by provider, with live filters, search, sorting
-and pagination. Every filter, the sort order, the page and the page size live
-in the URL — reload, share, back and forward all restore the same view.
+A page where customers can browse health services, filter them, and compare
+providers. Built with React and TypeScript.
 
-## Run it
+## How to run it
 
 ```bash
 yarn
 yarn dev
 ```
 
-Open http://localhost:5173/
+Then open http://localhost:5173/
 
-Put the dataset at `data/task1-service-explorer.json` before first run. The
-mock API (MSW) serves it in-browser — no server needed.
+You need to put the data file at `data/task1-service-explorer.json` before
+running it the first time. The app comes with a fake backend baked in, so
+there's nothing else to start.
 
-**Simulate an API failure:** open `/?fail=api`. The UI shows the error state
-with a Retry button.
+**To see the error screen:** open `/?fail=api` — every request will fail on
+purpose, and you'll see the retry screen.
 
-**Tests:** `yarn test`
+**To run tests:** `yarn test`
 
-**Build:** `yarn build && yarn preview`
+**To build for production:** `yarn build`
 
-## Stack
+## What it does
 
-React 19 + TypeScript + Vite. MUI for components, Tailwind + SASS for styling,
-TanStack Query for data, Zod for validation, MSW for the mock API. Chosen for
-accessibility defaults (MUI), fast feedback (Vite), and a clean separation
-between fetching (Query) and reasoning (pure functions in `src/domain/`).
+- Shows services grouped by provider (hospital, clinic, lab)
+- Lets you filter by service type, category, provider, city/country, price
+  range, and whether a home test is available
+- Free-text search across services, providers and categories
+- Every filter option shows how many results it would give you right now
+- Sort by relevance, price (high or low), or rating
+- Filters, sort, page and page size are all in the URL — so you can copy the
+  link, reload, or use back/forward and everything stays the same
+- On small screens, filters open in a side panel with a "Show N results"
+  button that tells you exactly how many results your selection will give
+  before you apply it
 
-## How it's built
 
-Filters and search are **network calls**, not in-browser computations. The
-frontend sends `GET /api/services/search?<query>` and gets back
-`{ groups, facets, pagination }`. The mock handler runs the same domain
-functions a real backend would — so when the real API lands, only
-`src/mocks/handlers.ts` goes away.
+## What happens when things go wrong
 
-```
-URL ← source of truth
- │
- ▼
-React Query ── GET /api/services/search
- │
- ▼
-MSW handler ── runs src/domain/* (visibility → filter → sort → group → paginate → facet)
- │
- ▼
-Provider cards rendered on screen
-```
+- **Loading:** you see grey placeholder cards, not a spinner
+- **Nothing matches your filters:** a card that says "No services match your
+  filters" with a button to clear them
+- **The server fails:** a friendly error message with a Retry button
+- **You're offline:** a yellow banner at the top, plus a "Waiting for
+  connection…" message instead of Retry
+- **One section fails but the other works:** the working section still shows.
+  A small orange banner tells you which part didn't load, with its own Retry
+- **An unexpected bug:** a fallback screen with "Something went wrong" and a
+  way to reload
+- **A URL that doesn't exist:** a 404 page with a link home
 
-## Decisions worth explaining
+## Extra care
 
-**Facet counts are disjunctive.** For each dimension, the count next to an
-option answers "how many results would I get if I selected *only* this option,
-keeping every other filter as-is?" That's why, with Bangkok selected, "Lab
-test" still shows a real number instead of 0. Each dimension is released
-before counting — `src/domain/facets.ts`.
+- **Fast:** filtering, sorting and searching are quick — the network response
+  arrives in about 40–80 milliseconds, and the page updates in under 10 ms
+  after that.
+- **Typing never lags:** the search box waits 200 ms after you stop typing
+  before it does anything, so you never feel a slowdown.
+- **No jumping:** the screen doesn't shift around when results change.
+- **Accessible:** everything works with the keyboard. Screen readers announce
+  when the result count changes.
+- **Shareable links:** every filter, sort, page and page size is in the URL.
+  There's also a "Copy link" button to make sharing easy.
 
-**Zero-count options.** Disabled, not hidden, for small structural lists
-(types, categories, currencies). Hidden with a *"N providers hidden"* hint for
-the 67-provider list. Hiding small lists makes the filter panel invisible;
-showing 60 greyed-out providers is noise.
+## Data-quality decisions I made
 
-**Currencies never mix.** The price filter is currency-first: pick THB / NPR /
-INR, then set a range. Min/Max are disabled until a currency is chosen.
-Selecting a currency also restricts results to providers pricing in it —
-otherwise a "฿1,000–5,000" range across INR services would be nonsense.
-
-**Wellness has no single price.** `price` is `null`; options live in
-`wellnessPricing`. We show the cheapest as **`from ฿X`** and use it for the
-price filter and price-sort. Not "average" (misleading), not "hidden"
-(breaks sort).
-
-**Category slugs aren't unique.** The two `ultrasound` categories share a
-slug but have different `id` and `type`. Every map, every React key, every URL
-param uses `id` — never slug.
-
-**URL is the only state.** `useSearchParams` for everything. Invalid values
-in the URL (e.g. `?type=banana`) are silently discarded. The search input
-debounces URL writes by 200 ms so typing never blocks. First paint shows
-skeletons, never an unfiltered flash.
-
-**Mobile drawer stages filters.** Inside the drawer, filters update local
-state. A preview query fires with the staged state and its
-`pagination.totalServices` becomes the number on the **"Show N results"**
-button. Tapping it commits to the URL with `replace: false` so **Back**
-returns to the pre-drawer view.
-
-**Pagination is over providers**, not individual services — users browse
-providers. Page size (10/20/50) is itself in the URL.
-
-**Copy-link button.** The URL is the source of truth, so one-click sharing is
-the natural affordance. The clipboard action shows a "Copied" confirmation.
-
-## Robustness — every error state has a real UI
-
-The brief called out "partial, slow and offline" explicitly. Each is handled
-with its own design:
-
-| Situation | What the customer sees |
+| Situation in the data | What the app does |
 | --- | --- |
-| Initial load | Skeleton cards matching the final layout shape |
-| Filter/page change | Previous results stay visible + a small "Updating…" hint (`keepPreviousData`) |
-| Empty results | Card with "No services match your filters" + **Clear filters** button |
-| Server 5xx | "Something went wrong on our side" + **Retry** |
-| Network failure | "Could not reach the server" + **Retry** |
-| Offline (device) | Persistent amber banner + retry disabled + "Waiting for connection…" |
-| Categories or providers fail but search works | Amber **"Some filter options couldn't load"** banner with Retry; results still render |
-| A component throws | **ErrorBoundary** renders a fallback (dev shows the stack; prod shows a friendly card) with Try again / Reload |
-| MSW worker fails to boot | App still renders, so the user sees the API error state instead of a blank page |
-| Unknown URL | **404 page** with a link home |
+| Provider has no currency | Shows "Currency not set by provider". Never guesses THB. |
+| Provider has no rating | Shows "No rating yet" in grey. Doesn't break the card layout. |
+| Provider is not active | All their services are hidden. |
+| Service is disabled | Hidden. |
+| Category is disabled | Services in that category are hidden. |
+| Service has a category that doesn't exist | Service is still shown, treated as having no category. Hiding a real service because of a broken link seemed worse. |
+| Price is malformed (e.g. not a number) | "Price unavailable". Excluded from price filter and price sort. |
+| Home test is available but no charge is given | Home-test badge still shows. Charge is not displayed. |
 
-Skeletons, not spinners. Retries are always offered where they make sense.
-The "N results" count and the drawer's "Show N results" button are
-`aria-live="polite"` so screen readers announce state changes.
+## What I left out, and what I'd do next
 
-## Messy data — what I decided
+Things I chose not to build in the time budget:
 
-- Missing `providerInformation.currency` → show `—` and no price. Never guess.
-- `rating: null` → "No rating yet" in grey. Card height stays constant, no
-  layout shift.
-- Provider not `active` / service `status: false` / category `status: false`
-  → hidden. Same rule everywhere, defence-in-depth in `isServiceVisible`.
-- `categoryId` points to a missing category → service still visible (treat
-  as "no category"). Hiding a real service because of a broken join is worse
-  for the customer than a missing filter chip.
-- Malformed price string → "Price unavailable", excluded from filter/sort.
-  Zod rejects malformed prices at boot, so this is mostly defensive.
-- Per-record safe parsing in `src/mocks/data.ts` logs how many records were
-  dropped — useful when the data gets messier.
+- A dedicated page for each provider — right now clicking "View all N services"
+  expands them inline instead
+- Server-side caching of search results (fine for a demo, real backends do
+  this)
+- More tests — I only covered the parts most likely to be wrong: the price
+  formula, the visibility rules, and the filter counting
+- Errors sent to a real monitoring tool — the app currently logs them to the
+  browser console
 
-## Performance
+If I had more time, I'd add:
 
-- **Filter change → results within ~100 ms.** The endpoint simulates 40–80 ms
-  of latency; render is well under 10 ms because the response identity is
-  the only memo dependency.
-- **Typing never blocks.** 200 ms debounce on the search input; each keystroke
-  is one render, one paint.
-- **No layout shift.** Skeleton matches card shape; rating slot has `min-h`;
-  disabled options keep their width. CLS = 0.
+1. A provider detail page (with duration picker for wellness)
+2. Tests that fire random filter combinations at the app and check the
+   counts always add up
+3. Support for providers that have hundreds of services (paginate their
+   services too, not just providers)
+4. Send caught errors to a real monitoring service
 
-Measured with Chrome DevTools Performance + Rendering panels. `keepPreviousData`
-keeps the previous page visible during fetch, so page changes feel instant.
-
-## Accessibility
-
-Keyboard navigation across the whole page, focus trap in the drawer, Escape
-closes it. The "N results" counter, the "Show N results" button, the
-"Copied" toast and the offline banner are all `aria-live`-appropriate.
-Category and provider checkboxes have `aria-label`. Colour isn't the only
-signal — disabled options are greyed **and** labelled `(0)`.
-
-## AI tools used
-
-Scaffolding boilerplate (Tailwind config, MSW worker setup) and drafting this
-README. Every domain function — pricing, visibility, filtering, facets,
-sorting — was written by hand and unit-tested. I can walk through any line in
-the follow-up.
-
-## What's not here
-
-- Dedicated provider detail page. "View all N services" expands inline.
-- Server-side caching of search results. Query caches by URL params; a real
-  backend would add `Cache-Control`.
-- Toast notifications for background refetch failures. Only full-search
-  errors surface as UI.
-- Full test coverage. 18 focused tests on the pricing formula, visibility
-  rules and disjunctive facet logic — the parts most likely to be wrong.
-
-## With more time
-
-1. Provider detail page with a duration selector for wellness services.
-2. Property-based tests on URL round-trip: random `UrlState` → serialize →
-   parse → assert equal.
-3. Facet fuzz tests: for random filter combinations, assert each facet count
-   equals `countForFilters(filters with that dimension released)`.
-4. Pagination of individual services within very large providers.
-5. `Suspense` boundaries around the results panel for a cleaner loading UX.
-6. Forward caught errors to Sentry (or equivalent) — the `ErrorBoundary` logs
-   to console today.
-
-## Repo layout
+## How it's organised
 
 ```
-data/           the brief's JSON dataset
+data/           the data file
 src/
-  api/          Axios + Zod schemas + fetchers
-  domain/       pure logic — pricing, visibility, filtering, facets, sorting
-  mocks/        MSW handlers + per-record safe parsing
-  hooks/        React Query hooks
-  state/        URL parsing / serialization (source of truth)
-  components/
-    common/     MoneyLabel, CopyLinkButton
-    errors/     ErrorBoundary
-    filters/    one component per filter + sidebar + drawer
-    layout/     AppShell, OfflineBanner
-    results/    cards, panel, pagination, sort
-    states/     Empty, Error, Skeletons
-  pages/        ServiceExplorerPage, NotFoundPage
-  styles/       global.scss
+  api/          talks to the (fake) backend
+  domain/       the math and rules — pricing, filtering, counting
+  mocks/        the fake backend itself
+  hooks/        fetching logic
+  state/        the URL as a source of truth
+  components/   the visual parts
+  pages/        page-level layout
 ```
+
+All the pure logic (pricing, filtering, counting, sorting) lives in `domain/`
+so it's easy to test in isolation, and it's the same code that runs inside
+the fake backend — so when the real API lands, only `mocks/` gets deleted.
+
+## AI usage
+
+**AI was used to help build this project.** Specifically:
+
+- **Claude (Anthropic)** was used for scaffolding the project — setting up
+  Vite, Tailwind, Material UI, the fake backend (MSW), and boilerplate files
+  like configs and the initial file structure.
+- **Claude** was also used for drafting parts of this README, and for
+  reviewing the code as I went along — for example, spotting a subtle bug
+  where pagination would briefly reset before loading.
+- **The domain logic** — the pricing formula, the visibility rules, the
+  filter counting, the sorting — was written by hand and unit-tested. I
+  understand every line and can explain any part of it in a follow-up
+  conversation.
+- **All the architectural decisions** — which library to use for what, how
+  to design the price filter across currencies, what to do with bad data —
+  are documented in the "Decisions" section above and are my own choices,
+  not generated.
