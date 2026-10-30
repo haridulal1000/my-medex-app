@@ -4,6 +4,11 @@ import { parseUrl } from '@state/urlState';
 import { executeSearch } from '@domain/search';
 import type { SearchRequest } from '@domain/search';
 
+// Vite exposes the deploy-time base path here. On localhost this is "/",
+// on GitHub Pages it is "/<repo-name>/". Prefixing every handler path with
+// it keeps request URLs and handler URLs in sync in both environments.
+const API_BASE = `${import.meta.env.BASE_URL}api`;
+
 const MIN_LATENCY_MS = 250;
 const MAX_LATENCY_MS = 650;
 const SEARCH_MIN_LATENCY_MS = 40;
@@ -31,13 +36,13 @@ const failResponse = () =>
   HttpResponse.json({ message: 'Simulated API failure' }, { status: 500 });
 
 export const handlers = [
-  http.get('/api/category/active', async () => {
+  http.get(`${API_BASE}/category/active`, async () => {
     await slowLatency();
     if (shouldFail()) return failResponse();
     return HttpResponse.json(categories);
   }),
 
-  http.get('/api/provider', async () => {
+  http.get(`${API_BASE}/provider`, async () => {
     await slowLatency();
     if (shouldFail()) return failResponse();
     return HttpResponse.json(providers);
@@ -46,13 +51,13 @@ export const handlers = [
   // Kept for compat — the frontend no longer calls this, but leaving the
   // endpoint available makes it trivial to debug against raw service data
   // from the browser console.
-  http.get('/api/service', async () => {
+  http.get(`${API_BASE}/service`, async () => {
     await slowLatency();
     if (shouldFail()) return failResponse();
     return HttpResponse.json(services);
   }),
 
-  http.get('/api/services/search', async ({ request }) => {
+  http.get(`${API_BASE}/services/search`, async ({ request }) => {
     await fastLatency();
     if (shouldFail()) return failResponse();
 
