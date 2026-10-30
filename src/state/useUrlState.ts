@@ -5,10 +5,17 @@ import type { UrlState } from './urlState';
 
 export function useUrlState() {
   const [sp, setSp] = useSearchParams();
-  const state = useMemo(() => parseUrl(sp), [sp]);
+  const searchString = sp.toString();
+  const state = useMemo(
+    () => parseUrl(new URLSearchParams(searchString)),
+    [searchString],
+  );
 
   const update = useCallback(
-    (updater: (prev: UrlState) => UrlState, opts: { replace?: boolean } = {}) => {
+    (
+      updater: (prev: UrlState) => UrlState,
+      opts: { replace?: boolean } = {},
+    ) => {
       setSp(
         (prevSp) => {
           const prev = parseUrl(prevSp);
