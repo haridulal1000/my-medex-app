@@ -1,65 +1,61 @@
-import { useCategories, useProviders, useServices } from '../hooks/useCatalog';
+import { AppShell } from '@components/layout/AppShell';
+import { SkeletonResults } from '@components/results/SkeletonResults';
+import { ResultsList } from '@components/results/ResultsList';
+import { useCategories, useProviders, useServices } from '@hooks/useCatalog';
+import { useUrlState } from '@state/useUrlState';
 
 export default function ServiceExplorerPage() {
-  const categories = useCategories();
-  const providers = useProviders();
-  const services = useServices();
+  const { state } = useUrlState();
+  const categoriesQ = useCategories();
+  const providersQ = useProviders();
+  const servicesQ = useServices();
 
   const loading =
-    categories.isLoading || providers.isLoading || services.isLoading;
-
-  const anyError = categories.error ?? providers.error ?? services.error;
+    categoriesQ.isLoading || providersQ.isLoading || servicesQ.isLoading;
+  const error = categoriesQ.error ?? providersQ.error ?? servicesQ.error;
 
   const refetchAll = () => {
-    void categories.refetch();
-    void providers.refetch();
-    void services.refetch();
+    void categoriesQ.refetch();
+    void providersQ.refetch();
+    void servicesQ.refetch();
   };
 
+  const flatCategories =
+    categoriesQ.data?.flatMap((c) => [c, ...c.children]) ?? [];
+
   return (
-    <div className="min-h-screen p-8">
-      <h1 className="text-2xl font-semibold">Service Explorer</h1>
-      <p className="text-slate-600 mt-1 text-sm">
-        Data pipeline sanity check (commit 2)
-      </p>
-
-      {loading && <p className="mt-6 text-slate-600">Loading…</p>}
-
-      {anyError && (
-        <div className="mt-6 p-4 bg-rose-50 border border-rose-200 rounded">
-          <p className="text-rose-700 font-medium">API failed</p>
-          <p className="text-sm text-rose-600 mt-1">{String(anyError)}</p>
-          <button
-            onClick={refetchAll}
-            className="mt-3 px-3 py-1 rounded bg-rose-600 text-white text-sm"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {!loading && !anyError && (
-        <dl className="mt-6 grid grid-cols-3 gap-4 max-w-xl">
-          <div className="bg-white p-4 rounded border border-slate-200">
-            <dt className="text-xs text-slate-500">Categories</dt>
-            <dd className="text-2xl font-semibold">
-              {categories.data?.length ?? '—'}
-            </dd>
+    <AppShell>
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        <aside className="hidden lg:block">
+          <div className="bg-white rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
+            Filters arriving in the next commit…
           </div>
-          <div className="bg-white p-4 rounded border border-slate-200">
-            <dt className="text-xs text-slate-500">Providers</dt>
-            <dd className="text-2xl font-semibold">
-              {providers.data?.length ?? '—'}
-            </dd>
-          </div>
-          <div className="bg-white p-4 rounded border border-slate-200">
-            <dt className="text-xs text-slate-500">Services</dt>
-            <dd className="text-2xl font-semibold">
-              {services.data?.length ?? '—'}
-            </dd>
-          </div>
-        </dl>
-      )}
-    </div>
+        </aside>
+        <section>
+          {loading ? (
+            <SkeletonResults />
+          ) : error ? (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded">
+              <p className="text-rose-700 font-medium">Something went wrong</p>
+              <p className="text-sm text-rose-600 mt-1">{String(error)}</p>
+              <button
+                onClick={refetchAll}
+                className="mt-3 px-3 py-1 rounded bg-rose-600 text-white text-sm"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <ResultsList
+              services={servicesQ.data ?? []}
+              providers={providersQ.data ?? []}
+              categories={flatCategories}
+              filters={state.filters}
+              sort={state.sort}
+            />
+          )}
+        </section>
+      </div>
+    </AppShell>
   );
 }

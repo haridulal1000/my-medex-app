@@ -1,9 +1,6 @@
 import type { Service, ServiceType } from '../api/schemas';
-import {
-  FilterContext,
-  FilterState,
-  serviceMatchesFilters,
-} from './filter';
+import type { FilterContext, FilterState } from './filter';
+import { serviceMatchesFilters } from './filter';
 
 export interface FacetResult {
   types: Record<ServiceType, number>;

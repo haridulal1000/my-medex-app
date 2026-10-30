@@ -31,7 +31,8 @@
   "@page/*":       ["./src/pages/*"],
   "@query/*":      ["./src/query/*"],
   "@state/*":      ["./src/state/*"],
-  "@styles/*":     ["./src/styles/*"]
+  "@styles/*":     ["./src/styles/*"],
+  "verbatimModuleSyntax": true
 }
   },
   "include": ["src"]
