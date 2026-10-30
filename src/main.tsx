@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-import { queryClient } from './query/client';
-import './styles/global.scss';
 import App from './App';
+import { queryClient } from '@query/client';
+import './styles/global.scss';
 
 const theme = createTheme({
   palette: {
@@ -15,13 +15,10 @@ const theme = createTheme({
   shape: { borderRadius: 10 },
 });
 
-async function enableMocking(): Promise<void> {
-  const { worker } = await import('./mocks/browser');
-  await worker.start({ onUnhandledRequest: 'bypass' });
-}
+const root = ReactDOM.createRoot(document.getElementById('root')!);
 
-enableMocking().then(() => {
-  ReactDOM.createRoot(document.getElementById('root')!).render(
+function render(): void {
+  root.render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
@@ -33,4 +30,19 @@ enableMocking().then(() => {
       </QueryClientProvider>
     </React.StrictMode>,
   );
-});
+}
+
+async function enableMocking(): Promise<void> {
+  const { worker } = await import('./mocks/browser');
+  await worker.start({ onUnhandledRequest: 'bypass' });
+}
+
+enableMocking()
+  .then(render)
+  .catch((err) => {
+    // Render the app even if MSW failed — the API calls will fail
+    // naturally and the user sees the error state with a retry, instead
+    // of a blank page.
+    console.error('[main] Failed to start mock API — rendering anyway', err);
+    render();
+  });

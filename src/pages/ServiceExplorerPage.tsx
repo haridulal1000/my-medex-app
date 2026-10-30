@@ -10,6 +10,7 @@ import { ResultsPanel } from '@components/results/ResultsPanel';
 import { EmptyState } from '@components/states/EmptyState';
 import { ErrorState } from '@components/states/ErrorState';
 import { SortDropdown } from '@components/results/SortDropdown';
+import { CopyLinkButton } from '@components/common/CopyLinkButton';
 import { useCategories, useProviders } from '@hooks/useCatalog';
 import { useServiceSearch } from '@hooks/useServiceSearch';
 import { useUrlState } from '@state/useUrlState';
@@ -25,11 +26,6 @@ export default function ServiceExplorerPage() {
   const topCategories = categoriesQ.data ?? [];
   const providers = providersQ.data ?? [];
 
-  // Reconcile page when the backend clamps it (e.g. filters reduce total
-  // pages while the user is on page 5). The `isPlaceholderData` guard is
-  // critical: while a new page is loading, `search.data` still holds the
-  // PREVIOUS page's data — without the guard, the effect would fire and
-  // revert the URL back to that previous page, breaking pagination entirely.
   useEffect(() => {
     if (search.isPlaceholderData) return;
     if (!search.data) return;
@@ -43,6 +39,8 @@ export default function ServiceExplorerPage() {
     !!search.data && search.data.pagination.totalServices === 0;
   const showResults =
     !!search.data && search.data.pagination.totalServices > 0;
+  const filtersActive = hasActiveFilters(state.filters);
+  const partialFailure = categoriesQ.isError || providersQ.isError;
 
   const clearAll = () => {
     update(
@@ -51,10 +49,27 @@ export default function ServiceExplorerPage() {
     );
   };
 
-  const filtersActive = hasActiveFilters(state.filters);
-
   return (
     <AppShell>
+      {partialFailure && (
+        <div
+          role="alert"
+          className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm flex items-center justify-between gap-2"
+        >
+          <span>Some filter options couldn't load.</span>
+          <button
+            type="button"
+            onClick={() => {
+              void categoriesQ.refetch();
+              void providersQ.refetch();
+            }}
+            className="text-[#0b69ff] hover:underline whitespace-nowrap"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
         <aside className="hidden lg:block">
           {search.data ? (
@@ -89,6 +104,9 @@ export default function ServiceExplorerPage() {
                   ? `${resultCount} result${resultCount === 1 ? '' : 's'}`
                   : ''}
               </div>
+              {search.isFetching && !search.isLoading && (
+                <span className="text-xs text-slate-400">Updating…</span>
+              )}
               {filtersActive && (
                 <button
                   type="button"
@@ -98,6 +116,7 @@ export default function ServiceExplorerPage() {
                   Clear filters
                 </button>
               )}
+              <CopyLinkButton />
             </div>
             <div className="shrink-0">
               <SortDropdown
@@ -114,7 +133,10 @@ export default function ServiceExplorerPage() {
           {search.isLoading && !search.data ? (
             <SkeletonResults />
           ) : search.isError ? (
-            <ErrorState onRetry={() => void search.refetch()} />
+            <ErrorState
+              error={search.error}
+              onRetry={() => void search.refetch()}
+            />
           ) : showEmpty ? (
             <EmptyState onClear={clearAll} />
           ) : showResults ? (

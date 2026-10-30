@@ -1,8 +1,10 @@
 import type { PropsWithChildren } from 'react';
+import { OfflineBanner } from './OfflineBanner';
 
 export function AppShell({ children }: PropsWithChildren) {
   return (
     <div className="min-h-screen flex flex-col bg-[#f7f8fa]">
+      <OfflineBanner />
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="font-bold text-lg text-[#0b69ff]">MedEx</div>
